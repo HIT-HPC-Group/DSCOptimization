@@ -31,7 +31,7 @@ def test(inputBatchNumber, inputChannel, inputHeight, inputWidth, outputChannel,
             ender.record()
             torch.cuda.synchronize()
             forwardTimeOriginal += starter.elapsed_time(ender)
-            
+
             """
             lossOriginal = loss_fn(output2, outputData)
             torch.cuda.synchronize()
@@ -75,79 +75,95 @@ starter = torch.cuda.Event(enable_timing = True)
 ender = torch.cuda.Event(enable_timing = True)
 
 # All possible batch numbers
-batchNumberOptions = [1, 8, 16, 32, 64, 128]
+batchNumberOptions = [1, 8, 16, 32, 64]
 
 # All layer structure parameters
 # Input Channel, Input Height(Width), OutputChannel
-layerConfigs = [[32, 112, 16],
-                 [16, 112, 96],
-                 [96, 56, 24],
-                 [24, 56, 144],
-                 [144, 56, 24],
-                 [144, 28, 32],
-                 [32, 28, 192],
-                 [192, 28, 32],
-                 [144, 28, 40],
-                 [40, 28, 240],
-                 [240, 28, 40],
-                 [192, 14, 64],
-                 [64, 14, 384],
-                 [384, 14, 64],
-                 [384, 14, 96],
-                 [96, 14, 576],
-                 [576, 14, 96],
-                 [240, 14, 80],
-                 [80, 14, 480],
-                 [480, 14, 80],
-                 [480, 14, 112],
-                 [112, 14, 672],
-                 [672, 14, 112],
-                 [576, 7, 160],
-                 [160, 7, 960],
-                 [960, 7, 160],
-                 [960, 7, 320],
-                 [320, 7, 1280],
-                 [672, 7, 192],
-                 [192, 7, 1152],
-                 [1152, 7, 192],
-                 [1152, 7, 320]]
+parameterList = [
+    [32, 112, 16],
+    [16, 112, 96],
+    [96, 56, 24],
+    [24, 56, 144],
+    [144, 56, 24],
+    [144, 28, 32],
+    [32, 28, 192],
+    [192, 28, 32],
+    [144, 28, 40],
+    [40, 28, 240],
+    [240, 28, 40],
+    [192, 14, 64],
+    [64, 14, 384],
+    [384, 14, 64],
+    [384, 14, 96],
+    [96, 14, 576],
+    [576, 14, 96],
+    [240, 14, 80],
+    [80, 14, 480],
+    [480, 14, 80],
+    [480, 14, 112],
+    [112, 14, 672],
+    [672, 14, 112],
+    [576, 7, 160],
+    [160, 7, 960],
+    [960, 7, 160],
+    [960, 7, 320],
+    [320, 7, 1280],
+    [672, 7, 192],
+    [192, 7, 1152],
+    [1152, 7, 192],
+    [1152, 7, 320],
+
+    [16, 112, 48],
+    [48, 56, 24],
+    [24, 56, 72],
+    [72, 56, 24],
+    [72, 28, 40],
+    [40, 28, 120],
+    [120, 28, 40],
+    [480, 14, 96],
+    [576, 7, 192],
+    [24, 28, 24],
+    [48, 14, 48],
+    [96, 7, 96],
+    [192, 7, 1024],
+    ]
 
 print("Start warm up.")
 #warm up, no print info
-for layerConfig in layerConfigs:
+for parameters in parameterList:
     for batchNumber in batchNumberOptions:
-        test(batchNumber, layerConfig[0], layerConfig[1], layerConfig[1], layerConfig[2], 1, False)
+        test(batchNumber, parameters[0], parameters[1], parameters[1], parameters[2], loop, False)
 print("Finish warm up.")
 
 # Test
 columns = [
-    "Input Channel", "Input Height/Width", "Output Channel", 
-    "Input Batch = 1 - Optimized (us)", "Input Batch = 1 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 8 - Optimized (us)", "Input Batch = 8 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 16 - Optimized (us)", "Input Batch = 16 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 32 - Optimized (us)", "Input Batch = 32 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 64 - Optimized (us)", "Input Batch = 64 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 128 - Optimized (us)", "Input Batch = 128 - PyTorch (us)", "Speed Up (%)"
+    "Input Channel", "Input Height/Width", "Output Channel",
+    "Input Batch = 1 - Optimized (us)", "Input Batch = 1 - PyTorch (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 8 - Optimized (us)", "Input Batch = 8 - PyTorch (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 16 - Optimized (us)", "Input Batch = 16 - PyTorch (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 32 - Optimized (us)", "Input Batch = 32 - PyTorch (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 64 - Optimized (us)", "Input Batch = 64 - PyTorch (us)", "Faster (%)", "Speed Up",
 ]
 
 resultTable = pd.DataFrame(columns = columns)
-for layerConfig in layerConfigs:
+for parameters in parameterList:
     result = []
     for batchNumber in batchNumberOptions:
-        currResult = test(batchNumber, layerConfig[0], layerConfig[1], layerConfig[1], layerConfig[2], loop, True)
+        currResult = test(batchNumber, parameters[0], parameters[1], parameters[1], parameters[2], loop, True)
         result.append("%.3f" % currResult[0])
         result.append("%.3f" % currResult[1])
-        speedup = 100 * (currResult[1] - currResult[0]) / currResult[1]
+        faster = 100 * (currResult[1] - currResult[0]) / currResult[1]
+        result.append("%.3f" % faster)
+        speedup = currResult[1] / currResult[0]
         result.append("%.3f" % speedup)
     resultTable = pd.DataFrame(
-        np.insert(resultTable.values, len(resultTable.index), 
-        values=[layerConfig[0], layerConfig[1], layerConfig[2],
-        result[0], result[1], result[2], 
-        result[3], result[4], result[5], 
-        result[6], result[7], result[8], 
-        result[9], result[10], result[11],  
-        result[12], result[13], result[14], 
-        result[15], result[16], result[17]], axis = 0), 
+        np.insert(resultTable.values, len(resultTable.index),
+        values=[parameters[0], parameters[1], parameters[2],
+        result[0], result[1], result[2], result[3],
+        result[4], result[5], result[6], result[7],
+        result[8], result[9], result[10], result[11],
+        result[12], result[13], result[14], result[15],
+        result[16], result[17], result[18], result[19],], axis = 0),
         columns = columns)
 
 resultTable.to_csv("DCU_Pointwise_Extension_Result.csv")

@@ -3,9 +3,12 @@ import time
 import pandas as pd
 import numpy as np
 # All batch size
-batchSizeList = [1, 8, 16, 32, 64, 128]
+batchSizeList = [1, 8, 16, 32, 64]
 
-# All layer configurations in MobileNet V2 and EfficientNet B0
+# All layer configurations in
+# MobileNet V2 and EfficientNet B0 (18 in total)
+# MNasNet and ShuffleNet V2 (12 in total)
+# Parameter Order: "Input Channel", "Input Height/Width", "Filter Height/Width", "Stride", 
 paramList = [
     [32, 112, 112, 3, 1],
     [144, 56, 56, 3, 1],
@@ -25,20 +28,31 @@ paramList = [
     [192, 28, 28, 3, 2],
     [240, 28, 28, 3, 2],
     [576, 14, 14, 3, 2],
-    [672, 14, 14, 5, 2]
-    ]
+    [672, 14, 14, 5, 2],
+
+    [72, 56, 56, 3, 1],
+    [120, 28, 28, 5, 1],
+    [24, 28, 28, 3, 1],
+    [48, 14, 14, 3, 1],
+    [96, 7, 7, 3, 1],
+    [48, 112, 112, 3, 2],
+    [72, 56, 56, 5, 2],
+    [576, 14, 14, 5, 2],
+    [24, 56, 56, 3, 2],
+    [48, 28, 28, 3, 2],
+    [96, 14, 14, 3, 2]
+]
 
 loopTime = 3
 
 # Create table
 columns = [
     "Input Channel", "Input Height/Width", "Filter Height/Width", "Stride", 
-    "Input Batch = 1 - Kernel (us)", "Input Batch = 1 - MIOpen (us)", "Speed Up (%)",
-    "Input Batch = 8 - Kernel (us)", "Input Batch = 8 - MIOpen (us)", "Speed Up (%)",
-    "Input Batch = 16 - Kernel (us)", "Input Batch = 16 - MIOpen (us)", "Speed Up (%)",
-    "Input Batch = 32 - Kernel (us)", "Input Batch = 32 - MIOpen (us)", "Speed Up (%)",
-    "Input Batch = 64 - Kernel (us)", "Input Batch = 64 - MIOpen (us)", "Speed Up (%)",
-    "Input Batch = 128 - Kernel (us)", "Input Batch = 128 - MIOpen (us)", "Speed Up (%)"
+    "Input Batch = 1 - Kernel (us)", "Input Batch = 1 - MIOpen (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 8 - Kernel (us)", "Input Batch = 8 - MIOpen (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 16 - Kernel (us)", "Input Batch = 16 - MIOpen (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 32 - Kernel (us)", "Input Batch = 32 - MIOpen (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 64 - Kernel (us)", "Input Batch = 64 - MIOpen (us)", "Faster (%)", "Speed Up",
 ]
 
 resultTable = pd.DataFrame(columns = columns)
@@ -49,11 +63,7 @@ for param in paramList:
     for batchSize in batchSizeList:
         os.system("rm -rf result.txt")
         for i in range(loopTime):
-            print("Calculating Input Batch: " + str(batchSize) + ", " + 
-        "Input Channel: " + str(param[0]) + ", " + 
-        "Input Height: " + str(param[1]) + ", " +
-        "Filter Height: " + str(param[3]) + ", " +
-        "Stride: " + str(param[4]) + " " + "for " + str(i + 1) + " time.")
+            print("Calculating Input Batch: " + str(batchSize) + ", " + "Input Channel: " + str(param[0]) + ", " + "Input Height: " + str(param[1]) + ", " + "Filter Height: " + str(param[3]) + ", " + "Stride: " + str(param[4]) + " " + "for " + str(i + 1) + " time.")
             cli = "./build/kernel" + " " + str(batchSize) + " " + str(param[0]) + " " + str(param[1]) + " " + str(param[3]) + " " + str(param[4]) + " >> result.txt"
             os.system(cli)
 
@@ -70,18 +80,19 @@ for param in paramList:
         kernelTime = 1000 * kernelTime / loopTime
         result.append("%.3f" % kernelTime)
         result.append("%.3f" % miopenTime)
-        speedup = 100 * (miopenTime - kernelTime) / miopenTime
+        faster = 100 * (miopenTime - kernelTime) / miopenTime
+        result.append("%.3f" % faster)
+        speedup = miopenTime / kernelTime
         result.append("%.3f" % speedup)
 
     resultTable = pd.DataFrame(
         np.insert(resultTable.values, len(resultTable.index), 
-        values=[param[0], param[1], param[3], param[4], 
-        result[0], result[1], result[2], 
-        result[3], result[4], result[5], 
-        result[6], result[7], result[8], 
-        result[9], result[10], result[11],  
-        result[12], result[13], result[14], 
-        result[15], result[16], result[17]], axis = 0), 
+        values = [param[0], param[1], param[3], param[4], 
+        result[0], result[1], result[2], result[3],
+        result[4], result[5], result[6], result[7],
+        result[8], result[9], result[10], result[11],
+        result[12], result[13], result[14], result[15],
+        result[16], result[17], result[18], result[19]], axis = 0), 
         columns = columns)
 
 # Output table

@@ -39,7 +39,7 @@ def test(inputBatchNumber, inputChannel, inputHeight, inputWidth, filterHeight, 
             ender.record()
             torch.cuda.synchronize()
             forwardTimeOriginal += starter.elapsed_time(ender)
-            
+
             """
             lossOriginal = loss_fn(output2, outputData)
             torch.cuda.synchronize()
@@ -73,7 +73,7 @@ def test(inputBatchNumber, inputChannel, inputHeight, inputWidth, filterHeight, 
         #print('    Backward original: {:.3f} us'.format(backwardTimeOriginal * 1e6 / loopTime))
 
         return [forwardTimeOptimized * 1e3 / loopTime, forwardTimeOriginal * 1e3 / loopTime]
-        
+
 # start from here
 assert torch.cuda.is_available()
 cuda_device = torch.device("cuda")
@@ -83,31 +83,43 @@ starter = torch.cuda.Event(enable_timing = True)
 ender = torch.cuda.Event(enable_timing = True)
 
 # All possible batch numbers
-batchNumberOptions = [1, 8, 16, 32, 64, 128]
+batchNumberOptions = [1, 8, 16, 32, 64]
 
 # All layer structure parameters
 # Input Channel, Input Height/Width, Input Width, Fitler Height/Width, Stride
-parameterList = [(32, 112, 112, 3, 1),
-                 (144, 56, 56, 3, 1),
-                 (192, 28, 28, 3, 1),
-                 (240, 28, 28, 5, 1),
-                 (384, 14, 14, 3, 1),
-                 (480, 14, 14, 3, 1),
-                 (480, 14, 14, 5, 1),
-                 (576, 14, 14, 3, 1),
-                 (672, 14, 14, 5, 1),
-                 (960, 7, 7, 3, 1),
-                 (1152, 7, 7, 3, 1),
-                 (1152, 7, 7, 5, 1),
+parameterList = [
+    [32, 112, 112, 3, 1],
+    [144, 56, 56, 3, 1],
+    [192, 28, 28, 3, 1],
+    [240, 28, 28, 5, 1],
+    [384, 14, 14, 3, 1],
+    [480, 14, 14, 3, 1],
+    [480, 14, 14, 5, 1],
+    [576, 14, 14, 3, 1],
+    [672, 14, 14, 5, 1],
+    [960, 7, 7, 3, 1],
+    [1152, 7, 7, 3, 1],
+    [1152, 7, 7, 5, 1],
+    [96, 112, 112, 3, 2],
+    [144, 56, 56, 3, 2],
+    [144, 56, 56, 5, 2],
+    [192, 28, 28, 3, 2],
+    [240, 28, 28, 3, 2],
+    [576, 14, 14, 3, 2],
+    [672, 14, 14, 5, 2],
 
-                 (96, 112, 112, 3, 2),
-                 (144, 56, 56, 3, 2),
-                 (144, 56, 56, 5, 2),
-                 (192, 28, 28, 3, 2),
-                 (240, 28, 28, 3, 2),
-                 (576, 14, 14, 3, 2),
-                 (672, 14, 14, 5, 2)
-                 ]
+    [72, 56, 56, 3, 1],
+    [120, 28, 28, 5, 1],
+    [24, 28, 28, 3, 1],
+    [48, 14, 14, 3, 1],
+    [96, 7, 7, 3, 1],
+    [48, 112, 112, 3, 2],
+    [72, 56, 56, 5, 2],
+    [576, 14, 14, 5, 2],
+    [24, 56, 56, 3, 2],
+    [48, 28, 28, 3, 2],
+    [96, 14, 14, 3, 2],
+    ]
 
 print("Start warm up.")
 #warm up, no print info
@@ -118,13 +130,12 @@ print("Finish warm up.")
 
 # Test
 columns = [
-    "Input Channel", "Input Height/Width", "Filter Height/Width", "Stride", 
-    "Input Batch = 1 - Optimized (us)", "Input Batch = 1 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 8 - Optimized (us)", "Input Batch = 8 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 16 - Optimized (us)", "Input Batch = 16 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 32 - Optimized (us)", "Input Batch = 32 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 64 - Optimized (us)", "Input Batch = 64 - PyTorch (us)", "Speed Up (%)",
-    "Input Batch = 128 - Optimized (us)", "Input Batch = 128 - PyTorch (us)", "Speed Up (%)"
+    "Input Channel", "Input Height/Width", "Filter Height/Width", "Stride",
+    "Input Batch = 1 - Optimized (us)", "Input Batch = 1 - PyTorch (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 8 - Optimized (us)", "Input Batch = 8 - PyTorch (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 16 - Optimized (us)", "Input Batch = 16 - PyTorch (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 32 - Optimized (us)", "Input Batch = 32 - PyTorch (us)", "Faster (%)", "Speed Up",
+    "Input Batch = 64 - Optimized (us)", "Input Batch = 64 - PyTorch (us)", "Faster (%)", "Speed Up",
 ]
 
 resultTable = pd.DataFrame(columns = columns)
@@ -134,17 +145,18 @@ for parameters in parameterList:
         currResult = test(batchNumber, parameters[0], parameters[1], parameters[2], parameters[3], parameters[4], loop, True)
         result.append("%.3f" % currResult[0])
         result.append("%.3f" % currResult[1])
-        speedup = 100 * (currResult[1] - currResult[0]) / currResult[1]
+        faster = 100 * (currResult[1] - currResult[0]) / currResult[1]
+        result.append("%.3f" % faster)
+        speedup = currResult[1] / currResult[0]
         result.append("%.3f" % speedup)
     resultTable = pd.DataFrame(
-        np.insert(resultTable.values, len(resultTable.index), 
-        values=[parameters[0], parameters[1], parameters[3], parameters[4], 
-        result[0], result[1], result[2], 
-        result[3], result[4], result[5], 
-        result[6], result[7], result[8], 
-        result[9], result[10], result[11],  
-        result[12], result[13], result[14], 
-        result[15], result[16], result[17]], axis = 0), 
+        np.insert(resultTable.values, len(resultTable.index),
+        values=[parameters[0], parameters[1], parameters[3], parameters[4],
+        result[0], result[1], result[2], result[3],
+        result[4], result[5], result[6], result[7],
+        result[8], result[9], result[10], result[11],
+        result[12], result[13], result[14], result[15],
+        result[16], result[17], result[18], result[19],], axis = 0),
         columns = columns)
 
 resultTable.to_csv("DCU_Depthwise_Extension_Result.csv")
